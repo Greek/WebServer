@@ -9,6 +9,7 @@ status_codes = {
 
 DEFAULT_STATUS_CODE = 500
 
+
 def make_response_status_line(code: int):
     """
     Make HTTP status line for a given response code to use in the
