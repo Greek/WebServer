@@ -82,9 +82,11 @@ def main():
                 req_method = get_request_method(headers)
 
                 print(f"Method and Headers: {headers[0]}")
-                print(f"Headers: {headers[1:] if len(headers) > 1 else "No headers detected"}")
-                print(f"Body: {body if len(body) > 0 else "No body detected"}")
+                print(f"\nHeaders: {headers[1:] if len(headers) > 1 else "No headers detected."}")
+                print(f"\nBody: {f"\n{body}" if len(body) > 0 else "No body detected."}")
                 
+                print()
+                print("===== Response Segment =====")               
                 response_segment = ""
                 if req_method not in ["POST", "GET"]:
                     response_segment += make_response_status_line(405)
@@ -94,9 +96,13 @@ def main():
                     response_body = "Insert thy response here..."
                     
                 response_body_length = len(response_body.encode("utf-8"))
-                response_segment += make_response_headers(["Server: custom_server", f"Content-Length: {response_body_length}"])
+                response_headers = ["Server: custom_server", f"Content-Length: {response_body_length}"]
+                response_segment += make_response_headers(response_headers)
                 response_full = f"HTTP/1.1 {response_segment}\r\n{response_body}"
 
+                print(f"Headers: {response_headers}")
+                print(f"\nBody: {f"\n{response_body}" if len(response_body) > 0 else "No response body sent."}")
+                print(f"\nFull Segment:\n{response_full.rstrip()}")
                 conn.send(
                     response_full.encode('utf-8')
                 )
