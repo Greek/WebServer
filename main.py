@@ -59,7 +59,18 @@ def make_response_headers(headers: list[str]) -> str:
 
     return res
 
+def get_file_contents(path: str) -> str:
+    file_contents = None
+    if path == "/":
+        path = 'index.html'
 
+    try:
+        with open(f"public/{path}", "r", encoding="utf-8") as file:        
+            file_contents = file.read()
+    except (FileNotFoundError, PermissionError):
+        pass
+
+    return file_contents
 
 HTTP_BUFFER_SIZE = pow(10,9) # 1 gb
 
@@ -80,22 +91,28 @@ def main():
                 headers = get_request_headers(http_request)
                 body = get_request_body(http_request)
                 req_method = get_request_method(headers)
+                req_target_path = headers[0].split(" ")[1]
 
                 print(f"Method and Headers: {headers[0]}")
                 print(f"\nHeaders: {headers[1:] if len(headers) > 1 else "No headers detected."}")
                 print(f"\nBody: {f"\n{body}" if len(body) > 0 else "No body detected."}")
                 
                 print()
-                print("===== Response Segment =====")               
+                print("===== Response Segment =====")
                 response_segment = ""
+                file_contents = get_file_contents(req_target_path)
+
                 if req_method not in ["POST", "GET"]:
-                    response_segment += make_response_status_line(405)
                     response_body = ""
+                    response_segment += make_response_status_line(405)
+                elif file_contents is None:
+                    response_body = get_file_contents("not_found.html")
+                    response_segment += make_response_status_line(404)
                 else:
+                    response_body = file_contents
                     response_segment += make_response_status_line(200)
-                    response_body = "Insert thy response here..."
-                    
-                response_body_length = len(response_body.encode("utf-8"))
+
+                response_body_length = len(response_body)
                 response_headers = ["Server: custom_server", f"Content-Length: {response_body_length}"]
                 response_segment += make_response_headers(response_headers)
                 response_full = f"HTTP/1.1 {response_segment}\r\n{response_body}"
