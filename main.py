@@ -9,11 +9,12 @@ HOST = None               # Symbolic name meaning all available interfaces
 PORT = 50000              # Arbitrary non-privileged port
 
 def get_socket() -> socket.socket: 
+    """ Create a socket and begin listening. """
     s = None
 
     for res in socket.getaddrinfo(HOST, PORT, socket.AF_INET,
                                 socket.SOCK_STREAM, 0, socket.AI_PASSIVE):
-        af, socktype, proto, canonname, sa = res
+        af, socktype, proto, _canonname, sa = res
         try:
             s = socket.socket(af, socktype, proto)
         except OSError as msg:
@@ -44,15 +45,25 @@ def get_request_body(raw: str) -> list[str]:
     return raw.split("\r\n")[-2:][1]
 
 def get_request_method(headers: list[str]) -> str:
+    """ Get an HTTP request's method by parsing its headers. """
     return headers[0].split(" ")[0].strip().upper()
 
 def make_response_status_line(code: int):
+    """
+    Make HTTP status line for a given response code to use in the
+    final segment response.
+    """
     if status_codes[code] is None:
         return f"418 {status_codes.get(418)}\r\n"
 
     return f"{code} {status_codes.get(code)}\r\n"
 
 def make_response_headers(headers: list[str]) -> str:
+    """
+    Make HTTP-complaint response headers with proper carriage return,
+    from a list of header strings.
+    """
+
     res = ""
     for _,v in enumerate(headers):
         res += f"{v}\r\n"
@@ -60,6 +71,8 @@ def make_response_headers(headers: list[str]) -> str:
     return res
 
 def get_file_contents(path: str) -> str:
+    """ Get a file and its contents without handling error. """
+
     file_contents = None
     if path == "/":
         path = 'index.html'
@@ -96,7 +109,7 @@ def main():
                 print(f"Method and Headers: {headers[0]}")
                 print(f"\nHeaders: {headers[1:] if len(headers) > 1 else "No headers detected."}")
                 print(f"\nBody: {f"\n{body}" if len(body) > 0 else "No body detected."}")
-                
+
                 print()
                 print("===== Response Segment =====")
                 response_segment = ""
