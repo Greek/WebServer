@@ -72,17 +72,20 @@ def main():
             print('Connected by', addr)
             while conn.fileno() != -1:
                 http_request = conn.recv(HTTP_BUFFER_SIZE).decode('utf-8', errors='ignore')
-                if not http_request: break
+                if not http_request:
+                    break
 
+                print()
                 print("===== Raw HTTP Request =====")               
                 headers = get_request_headers(http_request)
                 body = get_request_body(http_request)
                 req_method = get_request_method(headers)
-                response_segment = ""
 
-                print(headers)
-                print(body)
+                print(f"Method and Headers: {headers[0]}")
+                print(f"Headers: {headers[1:] if len(headers) > 1 else "No headers detected"}")
+                print(f"Body: {body if len(body) > 0 else "No body detected"}")
                 
+                response_segment = ""
                 if req_method not in ["POST", "GET"]:
                     response_segment += make_response_status_line(405)
                     response_body = ""
@@ -92,9 +95,10 @@ def main():
                     
                 response_body_length = len(response_body.encode("utf-8"))
                 response_segment += make_response_headers(["Server: custom_server", f"Content-Length: {response_body_length}"])
+                response_full = f"HTTP/1.1 {response_segment}\r\n{response_body}"
 
                 conn.send(
-                    f"HTTP/1.1 {response_segment}\r\n{response_body}".encode('utf-8')
+                    response_full.encode('utf-8')
                 )
 
 def sigint_handler():
