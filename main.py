@@ -3,7 +3,7 @@ import signal
 import socket
 import sys
 
-from status_codes import status_codes
+from status_codes import status_codes, make_response_status_line
 
 HOST = None               # Symbolic name meaning all available interfaces
 PORT = 50000              # Arbitrary non-privileged port
@@ -47,16 +47,6 @@ def get_request_body(raw: str) -> list[str]:
 def get_request_method(headers: list[str]) -> str:
     """ Get an HTTP request's method by parsing its headers. """
     return headers[0].split(" ")[0].strip().upper()
-
-def make_response_status_line(code: int):
-    """
-    Make HTTP status line for a given response code to use in the
-    final segment response.
-    """
-    if status_codes[code] is None:
-        return f"418 {status_codes.get(418)}\r\n"
-
-    return f"{code} {status_codes.get(code)}\r\n"
 
 def make_response_headers(headers: list[str]) -> str:
     """
@@ -128,13 +118,13 @@ def main():
                 response_body_length = len(response_body)
                 response_headers = ["Server: custom_server", f"Content-Length: {response_body_length}"]
                 response_segment += make_response_headers(response_headers)
-                response_full = f"HTTP/1.1 {response_segment}\r\n{response_body}"
+                payload = f"HTTP/1.1 {response_segment}\r\n{response_body}".encode('utf-8')
 
                 print(f"Headers: {response_headers}")
                 print(f"\nBody: {f"\n{response_body}" if len(response_body) > 0 else "No response body sent."}")
-                print(f"\nFull Segment:\n{response_full.rstrip()}")
+                print(f"\nFull Segment:\n{payload.rstrip()}")
                 conn.send(
-                    response_full.encode('utf-8')
+                    payload
                 )
 
 def sigint_handler():
