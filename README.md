@@ -7,4 +7,6 @@ used.
 ## Features
 
 - GET
+- HEAD
 - Conditional GET (Modified-Since, If-Modified-Since)
+- Directory traversal protection for files served from `public/`

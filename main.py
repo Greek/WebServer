@@ -4,7 +4,7 @@ import pathlib
 import signal
 import socket
 import sys
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from status_codes import status_codes, make_response_status_line
 
@@ -82,13 +82,12 @@ def make_response_headers(headers: list[str]) -> str:
     return res
 
 
-def get_file_contents(path: str) -> tuple[str | None, datetime | None]:
-    """Return a file's contents and last modified date from the public directory."""
-
+def resolve_public_path(path: str) -> tuple[pathlib.Path | None, bool]:
+    """Resolve a request path under public, flagging paths that escape it."""
     if not path:
-        return None, None
+        return None, False
 
-    normalized_path = urlsplit(path).path
+    normalized_path = unquote(urlsplit(path).path)
     if not normalized_path or normalized_path == "/":
         normalized_path = "index.html"
 
@@ -110,10 +109,24 @@ def get_file_contents(path: str) -> tuple[str | None, datetime | None]:
     try:
         candidate.relative_to(public_root)
     except ValueError:
-        return None, None
+        return None, True
 
     if candidate.is_dir():
-        candidate = candidate / "index.html"
+        candidate = (candidate / "index.html").resolve(strict=False)
+        try:
+            candidate.relative_to(public_root)
+        except ValueError:
+            return None, True
+
+    return candidate, False
+
+
+def read_file_contents(
+    candidate: pathlib.Path | None,
+) -> tuple[str | None, datetime | None]:
+    """Read a resolved public file and return its contents and modified date."""
+    if candidate is None:
+        return None, None
 
     try:
         with candidate.open("r", encoding="utf-8") as file:
@@ -122,6 +135,12 @@ def get_file_contents(path: str) -> tuple[str | None, datetime | None]:
         return file_contents, file_modified_date
     except (FileNotFoundError, PermissionError, IsADirectoryError, OSError):
         return None, None
+
+
+def get_file_contents(path: str) -> tuple[str | None, datetime | None]:
+    """Return a file's contents and last modified date from the public directory."""
+    candidate, _ = resolve_public_path(path)
+    return read_file_contents(candidate)
 
 
 HTTP_BUFFER_SIZE = pow(10, 9)  # 1 gb
@@ -160,11 +179,15 @@ def main():
                 requested_modified_date = None
                 send_empty_body = False
                 response_body = ""
-                file_contents, file_last_modified = get_file_contents(req_target_path)
+                resolved_path, path_is_blocked = resolve_public_path(req_target_path)
+                file_contents, file_last_modified = read_file_contents(resolved_path)
 
                 if req_method not in ["POST", "GET", "HEAD"]:
                     send_empty_body = True
                     response_segment += make_response_status_line(405)
+                elif path_is_blocked:
+                    send_empty_body = True
+                    response_segment += make_response_status_line(403)
                 elif req_method == "HEAD":
                     response_segment += make_response_status_line(200)
                     response_body = ""
@@ -201,7 +224,7 @@ def main():
                     else "Last-Modified: "
                 )
                 response_headers = [
-                    "Server: Extremely Reliable COSC 350 Server For Real Production Needs",
+                    "Server: Very Compliant Web Server",
                     f"Date: {datetime.now().strftime(HTTP_DATE_FMT)}",
                     last_modified_header,
                     f"Content-Length: {response_body_length}",
